@@ -1,0 +1,1154 @@
+Decoded: The Wizard's Castle (1980) by Joseph R. Power
+Beginner-friendly, line-by-line code walkthrough by MaiZure
+
+Original source code:
+http://www.maizure.org/projects/decoded-the-wizards-castle/ORIGWIZ.BAS
+
+The source code to The Wizard's Castle uses very short variable names of 1 or 2 letters. This keeps the source code size down, which used to be a concern prior to the 1990s. GW-BASIC for example had a 64KB code limit and older variants had 32KB limits. So we're having space, but short variable names makes code reading more challenging. 
+
+Here is a list of the variables in The Wizard's Castle and their purpose:
+
+A = temporary X position variable
+AV = armor type
+AH = armor health
+B = temporary Y position variable
+BF = book stuck flag
+BL = blindness flag
+C = temporary Z position variable
+DX = dexterity stat
+GP = gold pieces count
+HT = Unused (but declared/defined as 0)
+IQ = intelligence stat
+L(x) = room array holding the attributes of all 512 game rooms
+LF = lamp found flag
+MC = Unused variable referenced once (probably used to be a monster counter)
+O$ = temporary variable to hold user input
+O(x) = Orb of Zot location array
+OF = Orb of Zot found flag
+OT = stat points remaining count, 
+Q = temporary integer variable used in many ways, such as a genertic iterator
+Q1 = another temporary integer. One use is for monster's attack damage
+Q2 = another temporary integer. One use is for monster's health
+R(x) = Runestaff location array
+R$(x) = race names
+RC = player race choice (indexes R$)
+RF = runestaff found flag
+SX = player sex choice
+ST = strength stat
+T = game turn count
+TC = treasures found count
+VF = vendor fighting flag
+WC = Web counter. Timer for enemies being stuck in a web
+WV = weapon type (also damage level)
+X = player X (vertical) location (during init, it's used to set up the castle)
+Y = player Y (horizontal) location (also used to set up the castle)
+Y$ = string to print for invalid response (Please answer yes or no)
+Z = player Z (floor) location (also used to set up the castle)
+Z$ = temporary string holder used for printing dynamic text lines
+
+Since BASIC used line numbers, I've kept the original scheme for my comments
+
+Line  Comments
+1000  COMMENT
+1005  COMMENT
+1010  COMMENT
+1015  COMMENT
+1020  COMMENT
+1025  COMMENT
+1030  COMMENT
+1035  COMMENT
+
+GLOBAL MEMORY INIT
+1040  Set's all untyped variables to integers. By untyped, I mean the variable
+      lacks typical BASIC suffix identifiers (!, $, #, &, etc). The A-Z applies this
+      rule to all variables that begin with this letter range. In this case, all variables.
+1045  Declares dynamic (stack) string variables used throughout the game and
+      displayed as text. C$ is used for room attributes, I$ is used for room map characters,
+      R$ is for the four race types, W$ is for weapons, and E$ is for equipment 
+1050  Declares dynamic integers. L holds the attributes for the 512 game rooms.
+      C holds player conditions, T holds slots for player-carried treasures,
+1055  Function FNA generates a random number between 1 and the input argument
+1060  Function FNB "wraps" invalid coordinates. Levels are 8x8, so input values
+      of 0 become 8 and 9 become 1. This works because in BASIC, logical operators
+      evaluate to -1 instead of 1 like most other languages. So (1=1) returns -1
+1065  Function FNC caps the input value at 18 and returns it. This is analogous
+      to 'return min(18, input)'
+1070  Function FND returns the current room index based on the input level,
+      Z
+1075  Function FNE is returns the input modulus 100
+1080  Defines Y$ as the answer to a failed yes or no question (used during character
+      creation, vendors, etc)
+1085  Initializes NG to 0 -- NG means new game and is used to detect if the
+      player is starting a new game or restarting from a previous win/loss. Skips
+      the Intro if this isn't a fresh game
+1090  COMMENT
+1095  COMMENT
+1100  COMMENT
+1105  Increments NG. BASIC (still!) doesn't have a ++ operator so we're back
+      to good ol' var = var + 1
+1110  Assigns a random number to Q. No apparently purpose (unless this forces
+      a type cast? I don't think so)
+1115  Sets the data pointer to the first data element in the program. In this
+      case, see line 5225
+1120  Sets up a loop to read in the next 34 data elements (actually 68 because
+      we're about to double read)
+1125  Reads in the 34 room attributes to C$ plus the 34 map identifiers to I$
+1130  Repeat loop from 1120
+1135  Start a loop to initialized the 512 castle rooms
+1140  Sets each element to a value of 101 (uninitialized)
+1145  Repeat Loop from 1135
+1150  Start a loop to read in the weapons and equipment
+1155  Read in weapons to W$ and equipment to E$
+1160  Repeat loop at 1150
+1165  Start a loop to read in the four race names
+1170  Read the four races in to R$
+1175  Repeat loop at 1165
+1180  If this isn't the first game of the session, then skip the intro (to 1250)
+
+CODE BLOCK FOR PRINTING THE TITLE
+1185  Print the ASCII Escape control code. This may have had a legacy purpose,
+      such as removing special console interpretations. Regardless, this is legacy
+      code now
+1190  Jump to the section break graphic separator on line 5375
+1195  Print the title starting at 16 characters in to the line
+1200  Prints a blank line
+1205  Jump to the section break graphic
+1210  Prints line 1 of the background story
+1215  Prints line 2 of the background story
+1220  Prints line 3 of the background story
+1225  Prints line 4 of the background story
+1230  Prints line 5 of the background story
+1235  Prints line 6 of the background story
+1240  Prints line 7 of the background story
+1245  Prints a blank line
+
+INITIALIZE A NEW GAME AND CREATE A NEW CHARACTER
+The next ~100 lines (1255 to 1925) set up and kick off a new game
+
+1250  Sets the initial player position to Level 1, Row 1, Column 4. Note that
+      this is backwards from the modern convention where X specifics horizontal position
+      and Y specifies vertical.
+
+STAIRS
+1255  Sets the initial room as the entrance (type 2)
+1260  Loops through all levels
+1265  Loops through a level twice
+1270  Sets a temporary variable indicating stairs down attribute
+1275  Finds an uninitialized room on the floor above and sets to stairs down
+1280  Sets the current room to stairs going up
+1285  Continues loop for the current level
+1290  Continues loop for the next level
+
+ROOMS
+1295  Loops through all levels
+1300  Loops through all monster types
+1305  Assigns a random room to the monster type (one type per level)
+1310  Continues loop for all monster types
+1315  Loop through three times
+1320  Loop through non-dangerous room types (chests, books, orbs, etc)
+1325  Assigns a random room to the new type
+1330  Continues loop on room type
+1335  Sets a temporary variable indicating a room type for vendors
+1340  Assign a random room on the current to a vendor (still inside 3x loop)
+1345  Continue looping 3 times
+1350  Continue looping through all levels
+
+TREASURES
+1355  Loop through each of the eight treasures
+1360  Choose a random floor
+1365  Choose a random empty room and put the treasure there
+1370  Continue with the next treasure
+
+CONDITIONS
+1375  Set temp variable to an empty room
+1380  Loop through three player condition slots (1=Lethargy, 2=Leech, 3=Forgetfulness).
+      The selected condition will trigger based on the following location
+1385  Choose a random floor
+1390  Finds a random empty room (X,Y,Z now target that room)
+1395  Set condition trigger X location 
+1400  Set condition trigger Y location
+1405  Set condition trigger Z location
+1410  Clears a boolean that indicates the player has this condition
+1415  Continue with next condition
+1420  Sets RC (Race Choice) flag to null
+1425  Sets player strength to 2
+1430  Sets player dexterity to 12
+1435  Sets player race string to "MAN"
+
+PLACING THE RUNESTAFF
+1440  Chooses a random monster type
+1445  Chooses a random floor
+1450  Chooses a random room on the floor make the monster with the runestaff
+1455  Sets the X (vertical) location of the runestaff
+1460  Sets the Y (horizontal) location of the runestaff
+1465  Sets the Z (floor) location of the runestaff
+
+PLACING THE ORB OF ZOT
+1470  Sets a temporary variable indicating a warp point
+1475  Chooses a random floor
+1480  Chooses a random uninitialized room on the floor to place the orb
+1485  Sets the X (vertical) location of the Orb of Zot
+1490  Sets the Y (horizontal) location of the Orb of Zot
+1495  Sets the Z (floor) location of the Orb of Zot
+
+1500  Initializes miscellaneous game variables: BF = book stuck flag, OT = stat
+      points remaining count, HT = Unused, T = game turn count, VF = vendor fighting
+      flag, LF = lamp found flag
+1505  Initializes more game variables: TC = treasures found count, GP = gold
+      pieces count, RF = runestaff found flag, OF = orb of zot found flag, BL = blindness
+      flag, IQ = intelligence stat , SX = player sex choice
+1510  Loops on number of treasures
+1515  Sets player treasures to zero
+1520  Continue on with next treasure
+1525  Prints the BELL character. Makes a sound on computers with PC speakers
+1530  Prints a line
+1535  Prints an input prompt
+1540  Checks for user input 
+
+CHOOSE RACE 
+1545  Loops through the four race types
+1550  Compared selection and sets base stats from the race type
+1555  Continues with next race type
+1560  Prints a blank line
+1565  Takes away 4 stat points to distribute if player is race type 1 (hobbit)
+1570  Verifies input and sets race string to human (why?)
+1575  Prints out warning for incorrect race selection
+
+CHOOSE GENDER
+1580  Retry race selection
+1585  Choose a gender
+1590  Verifies input
+1595  If male, assert the SX variable 
+1600  If female, no change necessary
+1605  Print invalid gender selection warning
+1610  Retry gender selection
+
+MODIFY STATS
+1615  Prints a blank line
+1620  Prints a line
+1625  Prints a line
+1630  Prints a line
+1635  Prints a blank line
+1640  Sets temp string to print strength
+1645  Calls routine to change strength
+1650  Adds points to strength
+1655  Check if player has assigned all points
+1660  Sets temp string to Intelligence
+1665  Calls routine to change intelligence
+1670  Adds points to intelligence
+1675  Check if player ha assigned all points
+1680  Calls routine to change dexterity
+1685  Adds points to dexterity
+1690
+
+BUY STARTING ARMOR
+1695  Print a line
+1700  Sets temp string to "armor"
+1705  Call sub to print purchase type
+1710  Set armor, weapon, flare count, and enemy web count all to null
+1715  Prints list of armor to buy
+1720  Call sub to but armor
+1725  Check if player chose to buy nothing
+1730  Set player armor type based on choice
+1735  Checks if player made a valid armor choice
+1740  Prints a blank line
+1745  Prints a sarcastic comment if choice was invalid
+1750  Retry armor purchase
+1755  Sets armor health and takes away gold
+
+BUY STARTING WEAPON
+1760  Prints a blank line
+1765  Prints a statement
+1770  Sets temporary string to "Weapon"
+1775  Calls sub to print purchase type
+1780  Prints weapon options
+1785  Calls sub to handle weapon purchase
+1790  Checks if player purchased nothing
+1795  Sets the weapon type
+1800  Checks if the purchase was valid
+1805  Prints a blank line
+1810  Prints a sarcastic comment if invalid
+1815  Retry weapon purchase
+1820  Take away weapon purchase gold
+
+BUY OTHER EQUIPMENT
+1825  Checks if player has 20 gold, if not then skip lamp purchase
+1830  Print a blank line
+1835  Print option to buy lamp
+1840  Call sub to purchase lamp
+1845  If purchased, set flag and take away gold
+1850  IF input was invalid, retry lamp purchase
+1855  Print a blank line
+1860  If player has no gold, skip to the game start
+1865  Print gold remaining
+1870  Print a blank line
+1875  Input option to buy an amount of flares
+1880  Record purchase amount
+1885  Print a blank line
+1890  Check if the purchase amount is valid
+1895  If invalid, print a remark
+1900  Try purchase again
+1905  If purchase is made then skip to game start
+1910  If player doesn't have enough gold for flares, then print max amount
+1915  Sets flare amount and removes gold
+
+START GAME!
+1920  Sets player starting position
+1925  Print a starting comment
+1930  Call sub to print player status
+1935  COMMENT
+1940  COMMENT
+1945  COMMENT
+
+START OF A NEW PLAYER TURN
+Most actions return to this point to kick off another player turn. After some
+preliminary game state updates, game waits for input at the parser below on
+line 2210
+
+1950  Increments the game turn counter
+1955  If player has the runestaff or orb of zot, then skip status effects
+1960  If player is lethargic, then increment another turn
+1965  If player is being leeched, then remove a small amount of gold
+1970  Gold can't go below 0
+1975  Check if player is forgetful (can't remember the current location)
+1980  Store real location in to temporary A, B, C
+1985  Generate random location variables
+1990  Set current room status to 100 plus it's real status (condition check)
+1995  Restores real room location
+2000  If the room is empty then skip to user input
+2005  Loop over each possible condition
+2010  Otherwise, check the generated position to force a random status effect
+2015  Continue with next condition
+2020  Roll a random number between 1 and 5. If 1 then make a random sound
+
+TRIGGER AN ATMOSPHEREIC EFFECT
+2025  Print a blank line
+2030  Print a dangling line
+2035  Roll a random number with a case for blindness
+2040  Check number including a blind case
+2045  Switch on the random number
+2050  Skip to status effect cures
+2055  Print an effect
+2060  Return from random sound
+2065  Print an effect
+2070  Return from random sound
+2075  Print an effect
+2080  Return from random sound
+2085  Print an effect
+2090  Return from random sound
+2095  Print an effect
+2100  Return from random sound
+2105  Print an effect
+2110  Return from random sound
+2115  Print an effect
+2120  Return from random sound
+2125  Print an effect
+2130  Return from random sound
+2135  Print an effect
+2140  Return from random sound
+2145  Print an effect
+2150  Return from random sound
+2155  Print an effect
+2160  Return from random sound
+
+CURE STATUS EFFECTS
+2165  Check for blindness
+2170  Print a blank line
+2175  Print that the opal eye cures blindness
+2180  Remove blind effect
+2185  Check for sticky book
+2190  Print a blank line
+2195  Print that the blue flame removes sticky books
+2200  Remove sticky book
+2205  Print a blank line
+
+MAIN INPUT PARSER -- THE BIG IF-THEN LADDER
+This is where 99% of the game sits while it waits for user input. Note that
+BASIC's ON...GOTO...GOSUB chain allows for unusual branching statements. ON
+uses an expression and the result number tells the interpreter which entry in
+the subsequent list to follow. It's like a precursor to switch or select case.
+See line 2250 below before the first example of this usage.
+
+2210  Wait for user input
+2215  Check's the first two letters for 'DR' to perform a drink action (From
+      a pool in the room). Yes, you can type in 'DRBLAHBLAHBLAH' and it'll attempt
+      to drink from a pool.
+2220  Filter input check to only the first letter (otherwise a failed DR could
+      accidently go down)
+2225  Handle North movement
+2230  Handle South, West, or East movement. North was special because it's the
+      only command that can end the game by leaving north from the entrance
+2235  Handle Up movement
+2240  Handle Down movement
+2245  Handle checking the map
+2250  Handle throwing a flare. If NOT blind then BL+1 == 1 and go to 2620.
+2255  Handle using the lamp with branching on blindness
+2260  Handle opening a chest
+2265  Handle gazing in to an orb with branching on blindness
+2270  Handle teleporting check mandatory check for the runestaff
+2275  Handling quitting
+2280  Handle unknown input otherwise fall through for help screen
+
+PROCEDURE FOR HELP SCREEN
+2285  Print line 1 of help screen
+2290  Print line 2 of help screen
+2295  Print line 3 of help screen
+2300  Print line 4 of help screen
+2305  Print line 5 of help screen
+2310  Print line 6 of help screen
+2315  Print line 7 of help screen
+2320  Print line 8 of help screen
+2325  Print line 9 of help screen
+2330  Print line 10 of help screen
+2335  Print line 11 of help screen
+2340  Print line 12 of help screen
+2345  Print line 13 of help screen
+2350  Print line 14 of help screen
+2355  Print line 15 of help screen
+2360  Print line 16 of help screen
+2365  Print line 17 of help screen
+2370  Print line 18 of help screen
+2375  Print line 19 of help screen
+2380  Print line 20 of help screen
+2385  Print line 21 of help screen
+2390  Print line 22 of help screen
+2395  Print line 23 of help screen
+2400  Print line 24 of help screen
+2405  Print line 25 of help screen
+2410  Check for player input
+2415  End turn
+
+PROCEDURE FOR INVALID ACTION INPUT
+2420  Print a blank line
+2425  Print comment for an invalid command
+2430  End Turn
+
+PROCEDURE FOR MOVING NORTH
+2435  Checks if the current room is the entrance/exit. If so, then end the game.
+      This line is arrived at after travelling North (from line 2225)
+
+PROCEDURE FOR MOVING SOUTH, EAST, WEST
+2440  Update player X position (remember boolean true is -1 in BASIC)
+2445  Update player Y position
+2450  Verify X boundary
+2455  Verify Y boundary
+2460  Call printing stats and checking for new room events (fights, etc)
+
+PROCEDURE FOR MOVING UP
+2465  If there are stairs up then increase floor (z+1)
+2470  Otherwise, save "UP" to temp string
+2475  Print up failure message and end turn
+
+PROCEDURE FOR MOVING DOWN
+2480  Save "down" to temp string
+2485  If there are stairs down then decrease floor
+2490  Otherwise print a blank line
+2495  Print a failure line 
+2500  End turn
+
+PROCEDURE FOR BLIND MOVEMENT
+2505  If player isn't blind skip to 2540
+2510  Print a blank line
+2515  Print a blindness warning
+2520  End turn
+2525  COMMENT
+2530  COMMENT
+2535  COMMENT
+
+PROCEDURE FOR CHECKING MAP
+2540  Print a blank line
+2545  Store X and Y location variables
+2550  Loop through X coordinates
+2555  Loop through Y coordinates
+2560  Find status of the current room (in loop)
+2565  Set unknown room status to unknown "X/?" on map
+2570  Print player's current location
+2575  Print a space and the room legend for the current level
+2580  Continue with next Y
+2585  Print a blank line
+2590  Print a blank line
+2595  Continue with next X  
+2600  Restore player X and Y variables
+2605  Jump to print player's current location
+2610  Print player's floor
+2615  End turn
+
+PROCEDURE FOR USING FLARE
+2620  If player does not have flares..
+2625  Print a failure message
+2630  End turn
+2635  COMMENT
+2640  COMMENT
+2645  COMMENT
+2650  Print a blank line
+2655  Otherwise, remove a flare
+2660  Save player X and Y variables
+2665  Loop from player X-1 to player X+1
+2670  Check if the X is valid
+2675  Loop from player Y-1 to player Y+1
+2680  Check if the Y is valid
+2685  Grab the validated room status
+2690  Set the room status to the room
+2695  Print the map
+2700  Continue with next Y
+2705  Print a blank line
+2710  Print a blank line
+2715  Continue with next X
+2720  Restore the player location variables
+2725  Print the player's current location
+2730  End turn
+2735  COMMENT
+2740  COMMENT
+2745  COMMENT
+
+PROCEDURE FOR USING LAMP
+2750  If the player doesn't have the lamp...
+2755  Print a blank line
+2760  Print a failure warning
+2765  End turn
+2770  Otherwise, print a blank line
+2775  Print a player prompt
+2780  Call to check player input
+2785  Save the player location variables
+2790  Update X to the lamp direction
+2795  Update Y to the lamp direction
+2800  Check if the location is valid
+2805  If not valid then print a blank line
+2810  Print a failure message
+2815  End Turn
+2820  Otherwise, print a blank line
+2825  Print the lamp action and target location
+2830  Print a blank line
+2835  Check the validated status of the target room
+2840  Print the status of the room
+2845  Restore the player location variables
+2850  End Turn
+2855  COMMENT
+2860  COMMENT
+2865  COMMENT
+
+PROCEDURE FOR DRINKING FROM A POOL
+2870  If there isn't a pool in the room...
+2875  Print a blank line
+2880  Print a failure message
+2885  End turn
+2890  Otherwise, roll a random number between 1 and 8
+2895  Print a blank line
+2900  Print a message
+2905  Compare the roll and print a message
+2910  Switch on the roll
+2915  If the roll was 1 then increase strength 1-3 points and end turn
+2920  If the roll was 2 then decrease strength 1-3 points and end turn
+2925  If the roll was 3 then increase intelligence 1-3 points and end turn
+2930  If the roll was 4 then decrease intelligence 1-3 points and end turn
+2935  If the roll was 5 then increase dexterity 1-3 points and end turn
+2940  If the roll was 6 then decrease dexterity 1-3 points and end turn
+2945  If the roll was 7 then reroll a different race
+2950  Change to the new race
+2955  If the roll was 8 then change genders
+2960  Print the changed race and end turn
+
+PROCEDURE FOR OPENING ITEMS
+2965  If the player opens a chest...
+2970  Print a blank line
+2975  Print a chest opening message
+2980  Go to open chest routine
+2985  Otherwise, if the player opens a book..
+2990  Print a blank line
+2995  Print an open book message
+3000  Go to open book routine
+3005  Otherwise print a blank line
+3010  Print a failed open message
+3015  End turn
+
+PROCEDURE FOR OPENING BOOKS
+3020  Switch on a random roll between 1 and 6
+3025  If the roll was 1, then print message about blindness
+3030  Set player blindness flag
+3035  Remove book from room
+3040  If the roll was 2, then print useless message
+3045  Remove book from the room
+3050  If the roll was 3, then print useless message
+3055  Remove book from the room
+3060  If the roll was 4, then print message about dexterity boost
+3065  Set dexterity to max (18)
+3070  Remove book from the room
+3075  If the roll was 5, then print message about strength boost
+3080  Set strength to max (18)
+3085  Remove book from the room
+3090  If the roll was 6, print message about sticky book
+3095  Print message
+3100  Set flag for book preventing weapon use
+
+PROCEDURE TO CLEAR ROOM ATTRIBUTES
+3105  Clears the current room attributes (becomes an empty room)
+3110  Return to the main game loop
+
+PROCEDURE FOR OPENING CHESTS
+3115  Switch on a random roll between 1 and 4
+3120  If the roll was 1, then print a message about the chest exploding
+3125  Roll a random number between 1 and 6 to apply damage to player
+3130  Call player damage subroutine
+3135  If the player is dead, then go to death otherwise remove chest from room
+3140  If the roll was a 2, then roll a random number between 1 and 1000
+3145  Print that the player finds gold
+3150  Add gold to the player
+3155  Remove the chest from the room
+3160  If the  roll was a 3, then print that the player runs from poison gas
+3165  Clear the room 
+3170  Add 20 turns to the game clock
+3175  Choose a random direction to move the player
+3180  Call the player move subroutine
+
+PROCEDURE FOR GAZING IN TO ORB
+3185  If the room doesn't have an orb...
+3190  Print a blank line
+3195  Print a failure message
+3200  End turn
+3205  Otherwise, print a blank line
+3210  Print a partial message
+3215  Switch on a random roll between 1 and 6
+3220  If the roll was a 1 then print a message about player taking damage
+3225  Damage player 1 or 2 points and check for death then end turn
+3230  If the roll was a 2 then print a useless message
+3235  End turn
+3240  IF the roll was a 3 then print a useless message
+3245  End turn
+3250  If the roll was a 4 then save the player's current location
+3255  Roll a random location in the castle
+3260  Find the status of a that random room
+3265  Save that status
+3270  Print the status of that room and that location
+3275  Restore the player's location
+3280  End turn
+3285  If the roll was a 5 then roll a random location
+3290  If another roll between 1 and 8 is less than 4, then replace the random
+      location with the real location of the Orb of Zot
+3295  Print the real or fake location of the Orb of Zot
+3300  End turn
+3305  If the roll was a 6 then print a useless message
+3310  End turn
+
+PROCEDURE FOR TELEPORTING
+3315  If the player does not have the runestaff...
+3320  Print a blank line
+3325  Print a failure to teleport message
+3330  End turn
+3335  Store "X-Coordinate" in the temp string
+3340  Call Sub for player to enter an X coordinate
+3345  Set player X to the new coordinate
+3350  Store "Y-Coordinate" in the temp string
+3355  Call Sub for player to enter an Y coordinate
+3360  Set player Y to the new coordinate
+3365  Store "Z-Coordinate" in the temp string
+3370  Call Sub for player to enter an Z coordinate
+3375  Set player Z to the new coordinate
+3380  Set the player input string to T for teleport
+3385  Call routine to print status
+
+SUBROUTINE FOR QUITTING
+3390  Print a blank line
+3395  Print a quit prompt
+3400  Validate input
+3405  Print a blank line
+3410  If the player input a Y then go to quit
+3415  Otherwise, print a failure message
+3420  End turn
+3425  Print a blank line
+3430  Go to game over
+3435  COMMENT
+3440  COMMENT
+3445  COMMENT
+
+PROCEDURE TO PRINT PLAYER STATUS
+3450  Print a blank line
+3455  If the player isn't blind then call the sub for printing location
+3460  Print line 1 of player stats
+3465  Print line 2 of player stats
+3470  Print line 3 of player stats
+3475  If the player has a lamp then print it
+3480  Print a blank line
+3485  Remove web condition
+3490  Translate/Save the current room condition
+3495  Store the translated room condition
+3500  Save a partial string in to temp string variable
+3505  Print a blank line
+3510  Print the name of the of the room
+
+ROOM EVENTS
+3515  If the room has no hostile or active events (teleporting) then end turn
+3520  If the room has gold then give it to the player, print, and clear room
+3525  If the room has flares then give it to the player, print, and clear room
+3530  If the room has a triggered events then skip for a moment...
+3535  If the room has the Orb of Zot and the player teleported, get the orb
+3540  But if the room didn't have the orb, then teleport the player
+3545  If the room has a sinkhole then move the player down a level
+3550  If the room has an interactive event then skip down to 3580
+3555  Otherwise, print a blank line
+3560  Print that the player picks up a treasure
+3565  Add the treasure to the player
+3570  Increment the treasure counter
+3575  Clear the room and end turn
+3580  Set a temp variable to the room creature id
+3585  Remove room web condition
+3590  If there is a monster or a hostile vender in the room then go to fight
+
+VENDOR INTERACTION
+3595  Print a blank line
+3600  Print a prompt to interact with a vendor
+3605  Call check player input
+3610  If player ignores the vendor then end turn
+3615  If the player attacks the vendor...
+3620  Assert the vendor fighting flag
+3625  Print a blank line
+3630  Print an attack messag
+3635  Jump to fight routine
+3640  Otherwise check for valid input
+3645  On invalid input, print a blank line
+3650  Print an input failed message
+3655  Retry vendor interaction
+3660  Start trading by looping through all of the player's treasures
+3665  Randomize a sale value based on treasure
+3670  If the player doesn't have the treasure then skip it
+3675  Otherwise print a blank line
+3680  Print a sale prompt to include the sale price
+3685  Verify player input
+3690  If the player agrees, remove the treasure and add gold
+3695  If the player makes invalid input then retry sale prompt
+3700  Continue with the next treasure
+3705  If the player more than 1000 gold then skip down to trade
+3710  Otherwise print a blank line
+3715  Print that the player is too poor to trade
+3720  End turn
+3725  Recheck player gold and skip to potion sale if under 1250
+3730  Print a blank line
+3735  Print the player's current gold and armor
+3740  Print a blank line
+
+VENDOR ARMOR PURCHASE
+3745  Set temporary string to "armor"
+3750  Call purchase check routine
+3755  Print the base armor options
+3760  If player passes a gold check, print more options
+3765  If player passes a gold check, print more options
+3770  Print a blank line
+3775  Call input verification
+3780  Print a blank line
+3785  Check if player printed nothing and restart interaction
+3790  Check if player chose leather, take gold and give armor
+3795  Check if player something else and skip next 2
+3800  Otherwise, print a gold warning
+3805  Restart armor purchase
+3810  Check if player purchased chain, take gold and give armor
+3815  Check if player chose something other than plate and skip
+3820  Print that the player doesn't have enough for plate
+3825  Restart purchase
+3830  Check plate purchase, give armor, and take gold
+3835  Print a blank line
+3840  Print a failure message for invalid input
+3845  Restart armor purchase
+3850  If player doesn't have enough gold then skip weapons to potions
+3855  Print a blank line
+3860  Print player's remaining gold
+3865  Print a blank line
+
+VENDOR WEAPON PURCHASE
+3870  Set the temporary string to weapons
+3875  Call purchase check routine
+3880  Print the base weapon options
+3885  If player passes a gold check, print more options
+3890  If player passes a gold check, print more options
+3895  Print a blank line
+3900  Call input verification
+3905  Print a blank line
+3910  Check for no purchase and skip to 3975
+3915  Check for dagger purchase, take gold and give dagger
+3920  Check for anything other than the Mace and verify gold
+3925  Print line for gold check failure
+3930  Retry weapon purchase
+3935  Check for mace purchase, remove gold and give mace. Move to potions
+3940  Otherwise, check for sword purchase and pass gold check
+3945  Print a gold failure message
+3950  Print a second gold failure message
+3955  Retry weapon purchase
+3960  Verify sword purchase, take gold, and give sword. Move to potions
+3965  Print input failure
+3970  Move to potion purchase
+
+VENDOR POTION PURCHASE
+3975  If player has less than 1000 gold left then end turn
+3980  Set temporary string to "strength" for potion purchase
+3985  Call potion purchase subroutine
+3990  Check if player agrees to purchase
+3995  Take gold
+4000  Increase strength a random amount between 1 and 6
+4005  Save new strength value
+4010  Call verify new stat number routine
+4015  Otherwise, retry potion purchase
+4020  Check for invalid response, print prompt and retry
+4025  If player has less than 1000 gold then end turn
+4030  Set temporary string to intelligence
+4035  Call potion purchase subroutine
+4040  Check if player agrees to purchase
+4045  Take gold
+4050  Increase intelligence a random amount between 1 and 6
+4055  Save new intelligence value
+4060  Call verify new stat number routine
+4065  Otherwise, retry potion purchase
+4070  Check for invalid response, print prompt and retry
+4075  If player has less than 1000 gold then end turn
+4080  Set temporary string to dexterity
+4085  Call potion purchase subroutine
+4090  Check if player agrees to purchase
+4095  Take gold
+4100  Increase dexterity a random amount between 1 and 6
+4105  Save new dexterity value
+4110  Call verify new stat number routine
+4115  Otherwise, retry potion purchase
+4120  Check for invalid response, print prompt and retry
+4125  If player has less than 1000 gold or already owns a lamp then end turn
+
+VENDOR LAMP PURCHASE
+4130  Print a blank line
+4135  Print a prompt for buying the lamp
+4140  Call subroutine to handle purchase input
+4145  Verify purchase
+4150  Take 1000 gold form player
+4155  Assert the lamp flag
+4160  Print a blank line
+4165  Print a success message
+4170  End Turn
+4175  Handle bad input and retry
+4180  End turn
+
+PROCEDURE FOR FIGHT START
+4185  Save variable for the monster attack damage, monsters health, and 1
+4190  If player is lethargic, blind, or rolls a bad dex check, monster goes
+      first
+
+PROCEDURE FOR PLAYER'S TURN IN A FIGHT
+4195  Print a blank line
+4200  Print the monster's name
+4205  Print a blank line
+4210  Print fight options
+4215  Print an option to bribe
+4220  Check intelligence and print option to cast a spell
+4225  Print a blank line
+4230  Print player fight stats (Strength and dex)
+4235  Call sub to handle player input
+4240  If player chooses not to attack then skip to 4445
+4245  If player doesn't have a weapon...
+4250  Print a blank line
+4255  Print a message saying player can't attack without a weapon
+4260  Skip to monster's turn
+4265  If player isn't stuck with a book then skip to player attack
+4270  Print a blank line
+4275  Print a failed attack message due to stuck book
+4280  Go to monster's attack turn
+
+PROCEDURE PLAYER ATTACK
+4285  Dex check: If roll 1-20 + 3 for blind is greater than dex then...
+4290  Print a blank line
+4295  Print miss attack
+4300  Go to monster's turn
+4305  Otherwise get the monster's name
+4310  Verify the first letter
+4315  Print a blank line
+4320  Print a hit statement
+4325  Reduce monster's health based on player weapon
+4330  Check if monster is a gargoyle or dragon
+4335  If a random roll between 1 and 8 is a one...(player weapon breaks)
+4340  Print a blank line
+4345  Print the player's weapon breaks
+4350  Remove player weapon
+4355  Check if monster is still alive and go to monster's turn
+
+PROCEDURE FOR MONSTER DEATH
+4360  Print a blank line
+4365  Decrement an unused variable (maybe it was once a monster counter)
+4370  Print that the monster is dead
+4375  Checks if the player has recently fought and if not...
+4380  Print a blank line
+4385  Print that the player spends an hour eating
+4390  Save the last eating time
+4395  Check if the monster had the runestaff
+4400  Print a blank line
+4405  Print that the player found the runestaff
+4410  Move the runestaff location an inaccessible location
+4415  Assert the runestaff flag
+4420  Roll a random number between 1 and 1000
+4425  Print a blank line
+4430  Print that the player got gold from the monster
+4435  Add random gold to player
+4440  Call the room clearing subroutine
+
+PROCEDURE FOR PLAYER FIGHT OPTIONS
+4445  If the player tried to retreat then go to the monster's turn
+4450  If the player tried to attack then skip to attack
+4455  The player tried to cast, check IQ and if spell is ready, if not..
+4460  Print a blank line
+4465  Print that the player can't cast
+4470  Retry player fight input
+
+PROCEDURE FOR PLAYER SPELL CASTING
+4475  Print a blank line
+4480  Print a prompt for spell selection
+4485  Call the input handling routine
+4490  Print a blank line
+4495  Skip if the player didn't choose web
+4500  Reduce player strength by 1
+4505  Set the web counter to a random number between 1 and 8
+4510  If the player died (from strength-1), go to death else monster turn
+4515  If the player didn't cast fireball then skip
+4520  Roll 2d7 and save result for damage
+4525  Reduce strength by one
+4530  Reduce intelligence by one
+4535  If either stat is below 1 then go to death
+4540  Print spell damage
+4545  Print a blank line
+4550  Reduce monster health
+4555  Check if monster died
+4560  If player didn't choose deathspell then they made an invalid choice
+4565  Print a blank line
+4570  Print invalid spell choice
+4575  Retry player round
+4580  Print deathspell cast
+4585  Check IQ vs random roll between 16-19. Failure kills players
+4590  Print deathspell success and monster dies
+4595  Check if player tried to bribe monster and if not...
+4600  Print a blank line
+4605  Print invalid option message
+4610  Retry player fight input
+
+PROCEDURE FOR MONSTER BRIBE
+4615  If the player does not have any treasures
+4620  Print a blank line
+4625  Print a bribe failure message
+4630  Skip to monster turn
+4635  Choose a random treasure
+4640  If the player doesn't have a treasure then retry until one is found
+4645  Print a blank line
+4650  Print a prompt to offer monster the treasure
+4655  Call input verification subroutine
+4660  If the player refuses to give treasure then go to enemy turn
+4665  Check if player accepted the offer otherwise retry offer
+4670  Otherwise remove the treasure
+4675  Decrement the treasure counter
+4680  Print a blank line
+4685  Print a success message  
+4690  Reset the vendor fight flag
+4695  End fight and end turn
+
+PROCEDURE FOR ENEMY ATTACKS
+4700  Set the enemy turn flag
+4705  If the enemy is not webbed then skip to 4720
+4710  Decrement the web counter
+4715  If the web counter is now zero then print that the enemy is free
+4720  Detect the enemy name
+4725  Verify the enemy name
+4730  If the enemy is still free then skip to 4750
+4735  Print a blank line
+4740  Print that the enemy is stuck
+4745  Skip to player retreat check
+4750  Print a blank line
+4755  Print the enemy attack attempt
+4760  Roll attack vs player dex and blindness. If success skip to 4780
+4765  Print a blank line
+4770  Print the enemy misses
+4775  Skip to player retreat check
+4780  Print a blank line
+4785  Print that the enemy hit
+4790  Set monster damage
+4795  Check monster damage versus player armor
+4800  If player has no strength then go to game over
+4805  If player didn't choose retreat then retry on invalid input
+
+PROCEDURE FOR PLAYER RETREAT
+4810  Print a blank line
+4815  Print retreat success
+4820  Print a blank line
+4825  Print prompt for player retreat direction
+4830  Verify input
+4835  If input was a valid direction then go to player movement sub
+4840  Print a blank line
+4845  Print an invalid input warning
+4850  Print a blank line
+4855  Retry retreat input
+
+SUBROUTINE FOR ARMOR DAMAGE ABSORBTION
+4860  If player has armor...
+4865  Damage is reduced by armor value
+4870  Reduce armor's health (armor gets damaged)
+4875  Let armor potentially block all damage
+4880  If armor has run out of health...
+4885  Destroy player armor
+4890  Print a blank line
+4895  Print message about armor being destroyed
+4900  Reduce player health by final damage
+4905  Return to caller
+
+PROCEDURE FOR PLAYER DEATH
+4910  Print a BEL (beep)
+4915  Call line segment drawing and fall through to game over
+
+PROCEDURE FOR GAME ENDING AND RESULTS
+It's possible to jump in to this at different places depending on how you won/lost
+
+4920  Print end game text for death case
+4925  Print a blank line
+4930  Print partial death reason
+4935  Check strength and print it for cause of death
+4940  Check intelligence and print it for cause of death
+4945  Check dexterity and print it for cause of death
+4950  Print a blank line
+4955  Print more death text
+4960  Print inventory check
+4965  Jump to game treasure check on line 5055
+4970  Set player living flag to true
+4975  Print a blank line
+4980  Print exit castle alive text
+4985  Check if player had the orb of Zot and print failure case
+4990  Print successful win
+4995  Print a blank line
+5000  Check if player had the orb
+5005  Print a blank line
+5010  Print best ending text
+5015  Print a blank line
+5020  Print inventory check
+5025  Jump to inventory check
+5030  Print a blank line
+5035  Print defeat message
+5040  Print a blank line
+5045  Print defeat message
+5050  Print message that player made it out alive
+5055  Loop through each of the eight treasures
+5060  Print out the treasure name
+5065  Continue with next treasure
+5070  Print out the player's final armor and weapon
+5075  Check if player had a lamp and print it
+5080  Print a blank line
+5085  Print flares and gold
+5090  Check if player had the runestaff and print it
+5095  Print a blank line
+5100  Print the final turn count
+5105  Print a blank line
+5110  Print prompt to play again
+5115  Check user input
+5120  Print a blank line
+5125  If player chooses to continue..
+5130  Print a sarcastic message
+5135  Print a blank line
+5140  Print starting new game message
+5145  Print a blank line
+5150  Jump to new game at 1105
+5155  If player decided to end the game...
+5160  Print a farewell message
+5165  Print a blank line
+5170  Jump to End of Game
+
+PROCEDURE FOR DISCOVERING THE ORB OF ZOT
+5175  Prints a blank line
+5180  Prints a statement
+5185  Prints a blank line
+5190  Prints a statement
+5195  Prints a blank line
+5200  Prints a statement
+5205  Removes the runestaff from player
+5210  Adds the Orb of Zot to the player
+5215  Sets the Orb of Zot location to an unreachable coordinate
+5220  Go to room-clearing function and then to a new turn
+
+GAME DATA READ DURING MEMORY INIT
+5225  Data segment holding alternating room attributes and map characters
+5230  Data segment holding alternating room attributes and map characters
+5235  Data segment holding alternating room attributes and map characters
+5240  Data segment holding alternating room attributes and map characters
+5245  Data segment holding alternating room attributes and map characters
+5250  Data segment holding alternating room attributes and map characters
+5255  Data segment holding alternating room attributes and map characters
+5260  Data segment holding alternating room attributes and map characters
+5265  Data segment holding weapon and food information
+5270  Data segment holding weapon and food information
+5275  Data segment holding equipment information
+5280  Data segment holding race information
+
+PROCEDURE FOR INITIALIZING A RANDOM ROOM
+5285  Chooses a random room on a floor (floor decided before this sub)
+5290  If the room has already been initialized, choose another room
+5295  Set the room to a predetermined state (state Q decided before this sub)
+5300  Return (to the main init function between lines 1275 and 1480)
+
+PROCEDURE FOR KILLING A VENDOR
+5305  Print a blank line
+5310  Print a line
+5315  Print a line
+5320  Sets player armor to new Plate
+5325  Print a line
+5330  Sets weapon type to Sword
+5335  Print a line
+5340  Gives player a random strength boost
+5345  Print a line
+5350  Gives player a random intelligence boost
+5355  Print a line
+5360  Gives player a random dexterity boost
+5365  Gives player a lamp if they didn't have one
+5370  Jump back to fight victory routine
+
+SUBROUTINE FOR PRINTING SECTION BREAKS
+5375  Begin a loop of 64 iterations
+5380  Print the "*" once to make a wide line like "************"
+5385  Repeat loop
+5390  Prints a blank line
+5395  Prints a blank line
+5400  Return drawing a section break
+
+SUBROUTINE FOR INPUT VALIDATION
+5405  Prints a blank line
+5410  Print input prompt
+5415  Read user input
+5420  Save the first letter of user input
+5425  Return to caller with input parsed
+
+SUBROUTINE FOR STAT BOOSTING DURING CHARACTER CREATION
+5430  Print user input prompt
+5435  Read user input
+5440  Prints a blank line
+5445  Recasts user input as an integer
+5450  Escape invalid user input
+5455  Check valid input and retry subroutine if invalid
+5460  Subtracts inputted value from the stat point pool
+5465  Returns to caller in character creation
+
+*UNUSED SUBROUTINE TO CONVERT USER INPUT TO INTEGER
+5470  Reads user input
+5475  Saves re-casted user input to an integer
+5480  Returns
+
+SUBROUTINE FOR HANDLING PLAYER TELEPORT INPUT COORDINATES
+5485  Prints a blank line
+5490  Prints current temporary input prompt
+5495  Reads user input
+5500  Saved re-casted user input to an integer
+5505  Validates that the integer is 1 through 8 and returns
+5510  Failed validation: print a blank line
+5515  Print a failure message
+5520  Retry subroutine
+
+SUBROUTINE FOR HANDLING POTION PURCHASE DIALOGUE FROM VENDORS
+5525  Prints a blank line
+5530  Print a user prompt
+5535  Calls subroutine to check user input
+5540  Prints a blank line
+5545  Prints updated stat value
+5550  Returns to vendor purchase routine
+
+SUBROUTINE FOR HANDLING ARMOR/WEAPON PURCHASES
+5555  Prints a blank line
+5560  Prints purchase options
+5565  Returns to caller
+
+SUBROUTINE FOR PRINTING PLAYER WORLD LOCATION
+5570  Prints world location based on X, Y, and Z coordinates
+5575  Returns to caller
+
+5580 End of program (THE WIZARD'S CASTLE)
