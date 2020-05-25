@@ -13,6 +13,7 @@
 '''
 import random
 import sys
+import functools
 
 class WizardsCastle(object):
     def __init__(self, max_speed=False, test_mode=False):
@@ -33,8 +34,28 @@ class WizardsCastle(object):
                 raise ValueError
             return command
 
+    class Room:
+        def __init__(self):
+            self.revealed = False
+            self.monster = ''
+            self.gold = 0
+            self.stairup = []
+            self.stairdown = []
+            self.sinkhole = []
+            self.exit = False
+            self.treasure = ''
+            self.OrbOfZot = False
+            self.RuneStaff = False
+            self.misc = ''
+            self.food = ''
+
     def play(self, test_arg=None):
         # Set up constants
+        # Because we start castlemap at 1, mapsize is 513
+        # 8*8*8 = 512
+        # mapsize = 513, cause we start at index 1 for easy math
+        mapsize = 513
+        sinkholes = 4
         races = ['ELF', 'DWARF', 'HUMAN', 'HOBBIT']
         weapons = ['DAGGER', 'MACE', 'SWORD', 'HANDS']
         armors = ['LEATHER', 'CHAINMAIL', 'PLATE', 'NO ARMOR']
@@ -46,7 +67,7 @@ class WizardsCastle(object):
         food = ['SANDWICH', 'STEW', 'SOUP', 'BURGER', 'ROAST', 'FILET', 'TACO', 'PIE']
 
         self.playintro()
-        castlemap = self.initmap()
+        castlemap = self.initmap(mapsize, sinkholes)
         self.populatemap(castlemap, monsters, treasures, food, misc)
 
         # Setup player
@@ -96,7 +117,7 @@ class WizardsCastle(object):
                 print() # print newline after a row
             for col in range(0,7):
                 if board[row][col]['revealed'] == True:
-                    if self.isexit(level, x, y):
+                    if self.isexit(index):
                         roomd[1] = 'E'
                     if row == x and col == y:
                         roomd[4] = '@'
@@ -170,126 +191,127 @@ class WizardsCastle(object):
                 for index, item in enumerate(roomd, start=1):
                     print(item, end=' ' if index % 3 else ' ')
 
-    def isexit(self, level, x, y):
-        if level == 1 and x == 0 and y == 4:
+    def isexit(self, index):
+        if index == 4:
             return True
         else:
             return False
 
-    def initmap(self):
+    def encodemap(self, lvl, x, y):
+        sl = (lvl - 1) * 64
+        sx = x * 8
+        sy = y
+        index = sl + sx + sy
+        return index
+
+    def decodemap(self, index):
+        lvl = (index // 64) + 1
+        x = (index % 64) // 8
+        y = (index % 64) - (x * 8)
+        return lvl, x, y
+
+    def initmap(self, mapsize, sinkholes):
         # Initializes castlemap, 8x8x8
         # Set up stairs
         # Set up sinkholes
         # Return castlemap
         print("ZOT'S CREATING THE CASTLE...")
-        room = { 'revealed': False,
-                'monster': '',
-                'gold': 0,
-                'stairup': [0,0,0],
-                'stairdown': [0,0,0],
-                'sinkhole': [0,0,0],
-                'exit': False,
-                'treasure': '',
-                'OrbOfZot': False,
-                'RuneStaff': False,
-                'misc': '',
-                'food': ''}
         # Make the levels
-        # board = [[room] * 8 for _ in range(8)]
-        # Create an 8x8x8 map
+        # To make it easier, castlemap is a single dimension
         # With empty rooms
-        # Because I'm too stupid to figure out the 3rd dimension, just dict it
+        # Tom's example to decode the list:
+        # room = 237
+        # level = room // 64 + 1
+        # x = (room % 64) // 8
+        # y = (room % 64) - (x * 8)
+        # print(level, x, y)
+        # >>> 3 5 5
         # And it starts with 1 :)
         # Remember levels start with 1, Brann
-        castlemap = { 1: [[room] * 8 for _ in range(8)],
-                    2: [[room] * 8 for _ in range(8)],
-                    3: [[room] * 8 for _ in range(8)],
-                    4: [[room] * 8 for _ in range(8)],
-                    5: [[room] * 8 for _ in range(8)],
-                    6: [[room] * 8 for _ in range(8)],
-                    7: [[room] * 8 for _ in range(8)],
-                    8: [[room] * 8 for _ in range(8)],
-                    }
+        castlemap = {}
+        for i in range(1, mapsize):
+            c = {}
+            c = self.Room()
+            castlemap[i] = c
+
         # Set the exit, level 1, row 0, col 4:
-        castlemap[1][0][4]['exit'] = True
+        castlemap[4].exit = True
         print(sys.getsizeof(castlemap))
         # Set stairs
         print('SETTING STAIRS...')
-        upstairs = [0,0,0]
-        for level in castlemap.keys():
-            x = self.genrand(0,7)
-            y = self.genrand(0,7)
-            if level == 1 and x == 0 and y == 4:
-                    y += 1
+        # increments by 64 each iter
+        base = 0
+        # fix for arbitrary mapsize
+        for i in range(0, 7):
+            # just a counter
+            level = i + 1
+            # add base to randroom
+            rroom = base + self.genrand(0, 63)
+            # rroom + 64 = downstairs room
+            downstairs = rroom + 64
             if level == 1:
-                downstairs = [level + 1, x, y]
-                castlemap[level][x][y]['stairdown'] = downstairs
-                castlemap[level][x][y]['stairup'] = upstairs
+                castlemap[rroom].stairdown = downstairs
+                castlemap[downstairs].stairup = rroom
             if 1 < level < 8:
-                downstairs = [level + 1, x, y]
-                castlemap[level][x][y]['stairdown'] = downstairs
-                castlemap[level][x][y]['stairup'] = upstairs
-            if level == 8:
-                # No downstairs on lvl 8
-                castlemap[level][x][y]['stairup'] = upstairs
-                castlemap[level][x][y]['stairdown'] = [0,0,0]
-            print(level, ': ', castlemap[level][x][y])
-            upstairs = [level, x, y]
+                castlemap[rroom].stairdown = downstairs
+                castlemap[downstairs].stairup = rroom
+            # No downstairs on lvl 8
+            print(f"level: {level}, index: {rroom}, map: {castlemap[rroom].__dict__.items()}")
+            print(f"level: {level + 1}, index: {downstairs}, map: {castlemap[downstairs].__dict__.items()}")
+            base += 64
 
         # Set sinkholes
         print('CREATING SINKHOLES...')
-        sinkholes = self.genrand(1,4)
-        for _ in range(sinkholes):
-            # No sinkholes on lvl 1
-            level = self.genrand(2,7)
-            x = self.genrand(0,7)
-            y = self.genrand(0,7)
+        sinks = self.genrand(1, sinkholes)
+        for _ in range(sinks+1):
+            # No sinkholes on lvl 1 and level 8
+            index = self.genrand(1, mapsize)
             # Don't put sinkholes in rooms with stairs
-            while self.isoccupied(castlemap, level, x, y):
-                level = self.genrand(1,7)
-                x = self.genrand(0,7)
-                y = self.genrand(0,7)
-            sinkto = [level + 1, x, y]
+            while ((index // 64) + 1 == 1 or (index // 64) + 1 == 8) and self.isoccupied(castlemap, index):
+                level = self.genrand(1, mapsize)
+            sinkto = [index + 64]
             print(sinkto)
-            print(castlemap[level][x][y])
-            castlemap[level][x][y]['sinkhole'] = sinkto
+            print(castlemap[index])
+            castlemap[index].sinkhole = sinkto
         return castlemap
 
-    def randroom(self, castlemap):
+    def randroom(self, castlemap, index):
         # Checks the availability of a room
         # Generate new set of x, y if room is occupied
         level = self.genrand(1,8)
         x = self.genrand(0,7)
         y = self.genrand(0,7)
-        while self.isoccupied(castlemap, level, x, y):
+        while self.isoccupied(castlemap, index):
             level = self.genrand(1,8)
             x = self.genrand(0,7)
             y = self.genrand(0,7)
         return level, x, y
 
-    def isoccupied(self, castlemap, level, x, y):
+    # Memoize that shit, thanks @td.knox for this!
+    @functools.lru_cache(maxsize=512)
+    def isoccupied(self, castlemap, index):
         # Maybe fix this to accept key-value pair
         # to make it more universal
-        print(castlemap[level][x][y])
-        if level == 1 and x == 0 and y == 4:
+        print(castlemap[index])
+        if castlemap[4]:
             return True
-        elif castlemap[level][x][y]['sinkhole'] != [0,0,0]:
+        elif castlemap[index].sinkhole != [0]:
             return True
-        elif castlemap[level][x][y]['stairup'] != [0,0,0]:
+        elif castlemap[index].stairup != [0]:
             return True
-        elif castlemap[level][x][y]['stairdown'] != [0,0,0]:
+        elif castlemap[index].stairdown != [0]:
             return True
-        elif castlemap[level][x][y]['monster'] != '':
+        elif castlemap[index].monster != '':
             return True
         # elif castlemap[level][x][y]['treasure'] != '':
         #     return True
-        elif castlemap[level][x][y]['misc'] != '':
+        elif castlemap[index].misc != '':
             return True
-        elif castlemap[level][x][y]['food'] != '':
+        elif castlemap[index].food != '':
             return True
-        elif castlemap[level][x][y]['OrbOfZot'] == True:
+        elif castlemap[index].OrbOfZot == True:
             return True
-        elif castlemap[level][x][y]['RuneStaff'] == True:
+        elif castlemap[index].RuneStaff == True:
             return True
         else:
             return False
@@ -344,7 +366,7 @@ class WizardsCastle(object):
                 castlemap[level][x][y]['monster'] = monster
                 castlemap[level][x][y]['gold'] = self.genrand(300,1000)
                 castlemap[level][x][y]['misc'] = 'CHEST'
-                castlemap[level][x][y]['treasure'] = ttemp.pop(self.genrand(0,7)) # just trying something new
+                castlemap[level][x][y]['treasure'] = ttemp.pop(self.genrand(0,3)) # just trying something new
         # Populate with food, misc, and treasures
         for level in len(castlemap):
             x = self.genrand(0,7)
@@ -438,7 +460,11 @@ class WizardsCastle(object):
             print('...AND A LAMP.')
 
     def genrand(self, low, high):
-        return random.randint(low, high)
+        # Always skip the exit!
+        index = random.randint(low, high)
+        while index == 4:
+            index = random.randint(low, high)
+        return index
     
     def atmosphere(self, player, monsters):
         effects = ['A SCREAM!',
